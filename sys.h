@@ -65,6 +65,7 @@ struct sys_t {
 	void	(*fade_out_palette)();
 	void	(*resize_screen)();
 	void	(*update_screen)(const uint8_t *p, int present);
+	void	(*update_screen_cached)(const uint8_t *p, int present, bool cache_redraw);
 	void	(*shake_screen)(int dx, int dy);
 	void	(*transition_screen)(const struct sys_rect_t *s, enum sys_transition_e type, bool open);
 	void	(*process_events)();
@@ -95,6 +96,7 @@ struct sys_t {
 	bool	cycle_palette;
 	bool	hybrid_color;
 	bool	centred;
+	bool	reset_cache_counters;
 	int8_t	palette_offset;
 	int	w, h;
 };

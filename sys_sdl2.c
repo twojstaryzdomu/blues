@@ -526,27 +526,29 @@ static void sdl2_rehint_screen(const char *f) {
 	g_sys.add_message((char *)_filter);
 }
 
-static void sdl2_update_screen(const uint8_t *p, int present) {
-	if (_copper_color_key != -1) {
-		for (int j = 0; j < g_sys.h; ++j) {
-			if (j / 2 < COPPER_BARS_H) {
-				const uint32_t line_color = _copper_palette[j / 2];
-				for (int i = 0; i < g_sys.w; ++i) {
-					_screen_buffer[j * g_sys.w + i] = (p[i] == _copper_color_key) ? line_color : _screen_palette[p[i]];
+static void sdl2_update_screen_cached(const uint8_t *p, int present, bool cache_redraw) {
+	if (!cache_redraw) {
+		if (_copper_color_key != -1) {
+			for (int j = 0; j < g_sys.h; ++j) {
+				if (j / 2 < COPPER_BARS_H) {
+					const uint32_t line_color = _copper_palette[j / 2];
+					for (int i = 0; i < g_sys.w; ++i) {
+						_screen_buffer[j * g_sys.w + i] = (p[i] == _copper_color_key) ? line_color : _screen_palette[p[i]];
+					}
+				} else {
+					for (int i = 0; i < g_sys.w; ++i) {
+						_screen_buffer[j * g_sys.w + i] = _screen_palette[p[i]];
+					}
 				}
-			} else {
-				for (int i = 0; i < g_sys.w; ++i) {
-					_screen_buffer[j * g_sys.w + i] = _screen_palette[p[i]];
-				}
+				p += g_sys.w;
 			}
-			p += g_sys.w;
+		} else {
+			for (int i = 0; i < g_sys.w * g_sys.h; ++i) {
+				_screen_buffer[i] = _screen_palette[p[i]];
+			}
 		}
-	} else {
-		for (int i = 0; i < g_sys.w * g_sys.h; ++i) {
-			_screen_buffer[i] = _screen_palette[p[i]];
-		}
+		SDL_UpdateTexture(_texture, 0, _screen_buffer, g_sys.w * sizeof(uint32_t));
 	}
-	SDL_UpdateTexture(_texture, 0, _screen_buffer, g_sys.w * sizeof(uint32_t));
 	if (present) {
 		SDL_Rect r, *src, *dst;
 		r.x = _shake_dx;
@@ -571,6 +573,10 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 		if (_slide.br)
 			update_slide();
 	}
+}
+
+static void sdl2_update_screen(const uint8_t *p, int present) {
+	sdl2_update_screen_cached(p, present, false);
 }
 
 static void sdl2_shake_screen(int dx, int dy) {
@@ -657,6 +663,11 @@ static void handle_keyevent(const SDL_Keysym *keysym, bool keydown, struct input
 			SDL_PauseAudio(!g_sys.audio);
 			sprintf(_s, "Sound %s", g_sys.audio ? "on" : "off");
 			g_sys.add_message(_s);
+		}
+		break;
+	case SDLK_c:
+		if (keydown) {
+			g_sys.reset_cache_counters = true;
 		}
 		break;
 	case SDLK_d:
@@ -1131,6 +1142,7 @@ struct sys_t g_sys = {
 	.clear_slide = clear_slide,
 	.resize_screen = sdl2_resize_screen,
 	.update_screen = sdl2_update_screen,
+	.update_screen_cached = sdl2_update_screen_cached,
 	.shake_screen = sdl2_shake_screen,
 	.transition_screen = sdl2_transition_screen,
 	.process_events = sdl2_process_events,

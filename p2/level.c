@@ -344,6 +344,8 @@ static void level_update_tilemap() {
 			return;
 		}
 	}
+	if (!g_vars.redraw_cache)
+		return;
 	video_copy_background();
 	g_vars.tile_attr2_flags = 0;
 	uint16_t offset = (g_vars.tilemap.y << 8) | g_vars.tilemap.x;
@@ -361,7 +363,7 @@ static void level_update_tilemap() {
 }
 
 static void level_draw_tilemap() {
-	if (_redraw_tilemap) {
+	if (_redraw_tilemap || !g_vars.redraw_cache) {
 		return;
 	}
 	if (g_vars.tilemap.redraw_flag1 == 0) {
@@ -435,6 +437,10 @@ static void level_adjust_x_scroll() {
 				tilemap_xpos = 0;
 			}
 		}
+		if (g_vars.tilemap.prev_xpos != tilemap_xpos) {
+			g_vars.redraw_cache = true;
+		}
+		g_vars.tilemap.prev_xpos = tilemap_xpos;
 		g_vars.tilemap.x = (tilemap_xpos >> 4);
 		g_vars.tilemap.scroll_dx = (tilemap_xpos & 15);
 		g_vars.tilemap.scroll_dx &= ~1;
@@ -442,6 +448,7 @@ static void level_adjust_x_scroll() {
 		return;
 	}
 
+	g_vars.redraw_cache = true;
 	const int x_pos = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - g_vars.tilemap.x;
 	if (x_pos >= (TILEMAP_SCREEN_W / 16) || g_vars.level_force_x_scroll_flag != 0 || g_vars.objects_tbl[PLAYER_OFFSET].x_velocity != 0) {
 		if (g_vars.level_xscroll_center_flag != 0) {
@@ -485,6 +492,7 @@ static void level_adjust_x_scroll() {
 	} else {
 		g_vars.level_xscroll_center_flag = 0;
 	}
+	g_vars.redraw_cache = true;
 }
 
 static bool level_adjust_vscroll_down(int dl) {
@@ -494,6 +502,7 @@ static bool level_adjust_vscroll_down(int dl) {
 	}
 	++g_vars.tilemap.redraw_flag1;
 	g_vars.tilemap.scroll_dy += dl;
+	g_vars.redraw_cache = true;
 	if (g_vars.tilemap.scroll_dy < 16) {
 		return true;
 	}
@@ -511,6 +520,7 @@ static bool level_adjust_vscroll_up(int dl) {
 	}
 	++g_vars.tilemap.redraw_flag1;
 	g_vars.tilemap.scroll_dy -= dl;
+	g_vars.redraw_cache = true;
 	if (g_vars.tilemap.scroll_dy >= 0) {
 		return true;
 	}
@@ -590,6 +600,7 @@ static void level_adjust_y_scroll() {
 		}
 	}
 	int dl = 16;
+	g_vars.redraw_cache = true;
 	if (!g_vars.tilemap_adjust_player_pos_flag) {
 		const int dy = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - g_vars.tilemap.scroll_dy;
 		const int index = ((g_vars.tilemap.y + g_vars.tilemap_yscroll_diff) << 4) - dy;
@@ -652,6 +663,7 @@ void level_player_die() {
 	if (g_vars.player_lifes != 0) {
 		if ((g_options.cheats & CHEATS_UNLIMITED_LIFES) == 0) {
 			--g_vars.player_lifes;
+			g_vars.redraw_cache = true;
 			g_sys.add_message("Killed by death");
 			g_vars.message.timelimit = 500;
 			g_vars.player_energy = 0;
@@ -2669,6 +2681,7 @@ static void level_update_player_collision() {
 				} else {
 					if ((g_options.cheats & CHEATS_UNLIMITED_ENERGY) == 0) {
 						--g_vars.player_energy;
+						g_vars.redraw_cache = false;
 						if (g_vars.player_energy < 0) {
 							level_player_die();
 						}
@@ -2685,6 +2698,7 @@ static void level_update_player_collision() {
 					++num;
 					if ((num & 1) == 0) {
 						static const uint16_t data[] = { 0xFF46, 0xE0, 0xE1, 0x12D, 0x12E, 0x12F };
+						g_vars.redraw_cache = false;
 						level_add_object75_score(obj_player, (int16_t)data[num >> 1]);
 					}
 				}
@@ -2697,6 +2711,7 @@ static void level_update_player_collision() {
 				g_vars.objects_tbl[PLAYER_OFFSET].y_pos -= g_vars.monster.collide_y_dist;
 			} else {
 				int num = (obj->data.m.hit_jump_counter) & 3;
+				g_vars.redraw_cache = false;
 				level_add_object75_score(obj_player, 82 + (num << 1));
 				obj->spr_num |= 0x4000;
 				if (num == 2) {
@@ -2766,6 +2781,7 @@ static void level_update_player_collision() {
 		} else if (num == 174) {
 			++g_vars.player_lifes;
 			play_sound(4);
+			g_vars.redraw_cache = true;
 			level_add_object75_score(&g_vars.objects_tbl[PLAYER_OFFSET], 227);
 			level_clear_item(obj);
 		} else if (num == 13) {
@@ -2788,9 +2804,11 @@ static void level_update_player_collision() {
 			play_sound(8);
 			level_clear_item(obj);
 			++g_vars.bonus_energy_counter;
+			g_vars.redraw_cache = true;
 			if (g_vars.bonus_energy_counter >= 6) {
 				if (g_vars.player_energy != 3) {
 					++g_vars.player_energy;
+					g_vars.redraw_cache = true;
 					g_vars.bonus_energy_counter = 0;
 					level_add_object75_score(obj, 226);
 				}
@@ -2800,6 +2818,7 @@ static void level_update_player_collision() {
 			const int index = num - 39;
 			if (index >= 0 && index <= 4) {
 				g_vars.player_bonus_letters_mask |= (1 << index);
+				g_vars.redraw_cache = true;
 				level_clear_item(obj);
 			}
 		} else if (num <= 50) {
@@ -2829,6 +2848,7 @@ static void level_update_player_collision() {
 				const int index = num - 57;
 				++g_vars.level_items_count_tbl[index];
 				++g_vars.level_items_total_count;
+				g_vars.redraw_cache = true;
 				level_add_object75_score(obj, score_spr_lut[index] + 74);
 				if (obj->data.t.ref) {
 					++g_vars.level_complete_bonuses_count;
@@ -2851,6 +2871,7 @@ static void level_update_player_collision() {
 			const int index = num - 57;
 			++g_vars.level_items_count_tbl[index];
 			++g_vars.level_items_total_count;
+			g_vars.redraw_cache = true;
 			level_add_object75_score(obj, score_spr_lut[index] + 74);
 		} else if (num == 167 || num == 168) {
 			play_sound(1);
@@ -2860,11 +2881,13 @@ static void level_update_player_collision() {
 			level_add_object23_bones();
 			g_vars.shake_screen_counter = 7;
 			level_clear_item(obj);
+			g_vars.redraw_cache = true;
 			level_add_object75_score(obj, 228);
 		} else if (num == 173) {
 			play_sound(4);
 			if (g_vars.player_energy < 3) {
 				++g_vars.player_energy;
+				g_vars.redraw_cache = true;
 				level_clear_item(obj);
 			}
 		} else if (num == 169) {
@@ -2885,6 +2908,7 @@ static void level_update_player_collision() {
 			}
 			g_vars.shake_screen_counter = 9;
 			level_clear_item(obj);
+			g_vars.redraw_cache = true;
 			level_add_object75_score(obj, 230);
 		} else if (num == 170) { /* bomb */
 			play_sound(0);
@@ -2904,6 +2928,7 @@ static void level_update_player_collision() {
 				g_vars.current_bonus.y_pos = obj->y_pos;
 				obj->data.m.state = 0xFF;
 				obj->spr_num = 0xFFFF;
+				g_vars.redraw_cache = true;
 				level_add_bonuses_4x();
 			}
 			level_clear_item(obj);
@@ -2914,6 +2939,7 @@ static void level_update_player_collision() {
 				g_vars.light.palette_flag1 = 1;
 				g_vars.light.palette_counter = 0;
 				g_vars.light.state = 1;
+				g_vars.redraw_cache = true;
 			}
 			level_clear_item(obj);
 		} else if (num == 180) { /* light on */
@@ -2922,6 +2948,7 @@ static void level_update_player_collision() {
 				g_vars.light.palette_flag2 = 1;
 				g_vars.light.palette_counter = 0;
 				g_vars.light.state = 0;
+				g_vars.redraw_cache = true;
 			}
 			level_clear_item(obj);
 		} else if (num == 458 || num == 459) { /* boss projectiles */
@@ -2936,6 +2963,7 @@ static void level_update_player_collision() {
 				g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num = 0;
 				g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 8;
 				--g_vars.player_energy;
+				g_vars.redraw_cache = true;
 				const uint8_t energy = g_vars.player_energy;
 				g_vars.player_energy = 1;
 				level_add_object23_bones();
@@ -3271,6 +3299,7 @@ static void level_update_panel() {
 		g_vars.score_extra_life += count;
 		g_vars.player_lifes += count;
 		level_add_object75_score(&g_vars.objects_tbl[PLAYER_OFFSET], 227);
+		g_vars.redraw_cache = true;
 	}
 	level_draw_panel();
 }
@@ -3294,6 +3323,7 @@ static bool level_update_palette(const uint8_t *src_pal, const uint8_t *dst_pal,
 			palette[i] = dst_pal[i];
 		} else {
 			palette[i] = src_pal[i] - step;
+			g_vars.redraw_cache = true;
 			changed = true;
 		}
 	}
@@ -3312,6 +3342,7 @@ static bool level_update_palette(const uint8_t *src_pal, const uint8_t *dst_pal,
 
 static void level_cycle_palette() {
 	if (g_sys.cycle_palette) {
+		g_vars.redraw_cache = true;
 		if (g_sys.palette_offset) {
 			g_vars.prev_palette = g_vars.palette;
 			g_vars.palette = (g_vars.palette + g_sys.palette_offset + UNIQUE_PALETTES) % UNIQUE_PALETTES;
@@ -3383,14 +3414,19 @@ static void level_draw_messages() {
 static void level_resize() {
 	if (g_sys.resize || g_sys.rehint) {
 		video_resize();
-		if (!g_sys.centred && !g_vars.slide) {
-			g_sys.render_set_sprites_clipping_rect(0, 0, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
-			level_init_tilemap();
-		} else if (g_sys.centred) {
-			video_copy_centred(g_res.background, ORIG_W, ORIG_H);
+		if (!g_sys.centred) {
+			if (!g_vars.slide) {
+				g_sys.render_set_sprites_clipping_rect(0, 0, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
+				if (!g_vars.level_completed_flag)
+					level_init_tilemap();
+			} else {
+				video_copy_background();
+			}
+			level_draw_panel();
 		} else {
-			video_copy_background();
+			video_copy_centred(g_res.background, ORIG_W, ORIG_H);
 		}
+		g_sys.update_screen(g_res.vga, 0);
 		sprintf(g_vars.message.s, "%dx%d", GAME_SCREEN_W, GAME_SCREEN_H);
 		g_sys.add_message(g_vars.message.s);
 		level_draw_messages();
@@ -3402,7 +3438,10 @@ static void level_sync() {
 	update_input();
 	level_resize();
 	level_cycle_palette();
-	g_sys.update_screen(g_res.vga, 1);
+	g_vars.redraw_cache ? ++g_vars.redraw_counter : ++g_vars.cache_counter;
+	print_debug(DBG_CACHE, "Cache %d Redraw %d Hit ratio %d%%", g_vars.cache_counter, g_vars.redraw_counter, 100 * g_vars.cache_counter / (g_vars.cache_counter + g_vars.redraw_counter));
+	g_sys.update_screen_cached(g_res.vga, 1, !g_vars.redraw_cache);
+	g_vars.redraw_cache = false;
 	if (!g_sys.centred && !g_vars.slide)
 		g_sys.render_clear_sprites();
 	const int diff = (g_vars.timestamp + (1000 / 30)) - g_sys.get_timestamp();
@@ -3717,8 +3756,10 @@ static void level_completed_bonuses_animation() {
 	g_vars.tilemap.x = 0;
 	g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir = 0;
 	g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = 0;
+	video_clear();
 	level_completed_bonuses_animation_draw_score();
 	level_clear_monsters();
+	g_sys.update_screen(g_res.vga, 0);
 	g_vars.player_flying_flag = false;
 	g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[1];
 	while (1) {
@@ -3750,7 +3791,6 @@ static void level_completed_bonuses_animation() {
 		}
 		g_vars.objects_tbl[PLAYER_OFFSET].y_pos = y_pos;
 
-		video_clear();
 		level_completed_bonuses_animation_draw_score();
 		level_draw_objects();
 		level_sync();
@@ -3772,7 +3812,6 @@ static void level_completed_bonuses_animation() {
 	g_vars.objects_tbl[AXE_OFFSET + 2].spr_num = 104;
 	do {
 		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
-		video_clear();
 		level_completed_bonuses_animation_fixup_object4_spr_num();
 		level_completed_bonuses_animation_draw_score();
 		level_draw_objects();
@@ -3790,7 +3829,6 @@ static void level_completed_bonuses_animation() {
 		g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 2;
 		while (1) {
 			level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
-			video_clear();
 			level_completed_bonuses_animation_fixup_object4_spr_num();
 			level_completed_bonuses_animation_draw_score();
 			level_draw_objects();
@@ -3845,7 +3883,6 @@ static void level_completed_bonuses_animation() {
 	g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[1];
 	do {
 		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
-		video_clear();
 		level_completed_bonuses_animation_fixup_object4_spr_num();
 		level_completed_bonuses_animation_draw_score();
 		level_draw_objects();
@@ -3975,6 +4012,9 @@ static void level_pause() {
 	g_sys.render_set_sprites_clipping_rect(0, 0, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
 	level_update_player();
 	level_init_tilemap();
+	level_draw_panel();
+	g_vars.redraw_cache = true;
+	g_sys.update_screen(g_res.vga, 0);
 	print_debug(DBG_SYSTEM, "Resuming");
 }
 
@@ -4078,12 +4118,13 @@ void do_gameover_animation() {
 	g_sys.slide_rect.h = PANEL_H;
 	g_sys.slide_end = 0;
 	g_vars.slide = true;
+	level_draw_panel();
+	g_sys.update_screen(g_res.vga, 0);
 	do {
 		g_sys.render_clear_sprites();
 		do_gameover_animation_helper(gameover, gameover_y_offset);
 		level_draw_objects();
 		level_draw_messages();
-		level_update_panel();
 		level_sync();
 		while (g_sys.paused) {
 			update_input();

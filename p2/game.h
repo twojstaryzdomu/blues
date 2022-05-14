@@ -250,9 +250,14 @@ struct vars_t {
 
 	bool slide;
 
+	bool redraw_cache;
+	uint32_t redraw_counter;
+	uint32_t cache_counter;
+
 	struct {
 		int16_t x, y;
 		int16_t prev_x, prev_y;
+		int16_t prev_xpos;
 		int8_t scroll_dx, scroll_dy;
 		uint8_t redraw_flag2; /* tilemap needs redraw */
 		uint8_t redraw_flag1; /* force redraw even if tilemap origin did not change */

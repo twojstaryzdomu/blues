@@ -19,6 +19,11 @@ void update_input() {
 	g_vars.input.keystate[2] = g_sys.input.digit1;
 	g_vars.input.keystate[3] = g_sys.input.digit2;
 	g_vars.input.keystate[4] = g_sys.input.digit3;
+	if (g_sys.reset_cache_counters) {
+		g_vars.redraw_counter = 0;
+		g_vars.cache_counter = 0;
+		g_sys.reset_cache_counters = false;
+	}
 }
 
 static void wait_input(int timeout) {

@@ -60,6 +60,7 @@ In-game palette cycling is only available in Prehistorik 2.
 |    Key(s)   |               Function               |
 |:-----------:|:-------------------------------------|
 |      A      | Toggle audio                         |
+|      C      | Reset cache stats (in '--debug=128') |
 |      D      | Decrease scale                       |
 |      H      | Toggle Hybrid crack palette bug      |
 |      I      | Increase scale                       |
