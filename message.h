@@ -12,8 +12,8 @@
 #define MESSAGE_TIMELIMIT 1000
 #define MAX_MESSAGES 5
 
-char	*_queue[MAX_MESSAGES];
-char	_buf[MESSAGE_MAX];
+char __attribute__((__common__)) *_queue[MAX_MESSAGES];
+char __attribute__((__common__)) _buf[MESSAGE_MAX];
 
 struct message_t {
 	void	(*add)(const char *format, ...);
